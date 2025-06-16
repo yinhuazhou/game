@@ -1,0 +1,52 @@
+□ UTF8 with BOM
+vs中如果代码含有中文，要确保文件本身以UTF-8 BOM的形式存储，否则会报错
+源码交付时，译者已经全部处理为该格式，但读者后续若因为复制或者存储方式发生了变更导致报错，
+可以按如下操作在linux上重新格式化:
+
+cd project_folder
+find . -name "*.cpp" | xargs file | xargs nkf --overwrite --oc=UTF-8-BOM
+find . -name "*.h" | xargs file | xargs nkf --overwrite --oc=UTF-8-BOM
+
+□ 删掉所有陈旧的垃圾文件
+译者整理本书时，同时使用了两台电脑——一台thinkpad笔记本，一台组装PC。
+一开始所有的源码都在笔记本上用vs2012编译成功了。后来觉得有理由为读者再提供一份vs2017版本的源码，
+所以当时直接将编译后的内容拷贝到PC上用vs2017打开重新编译。
+但由于一些pdb和ilk文件未删除，调试中遇到了一些奇怪的问题。
+考虑到少部分读者恐怕也会遇到这样的困扰，所以如有必要可以像下面这样删掉所有陈旧的编译产物。
+
+cd project_folder
+rm -rf $(find ./ -name "debug" -or -name "release" -or -name "Debug" -or -name "Release" -or -name ".svn" -or -name "ipch" -and -type d)
+rm -rf $(find ./ -name "*‾" -or -name "*.suo" -or -name "*.ncb" -or -name "*.user" -or -name "*.idb" -or -name "*.sdf" -or -name "*.vcproj" -or -name "*.filters")
+rm -rf $(find src -name "*.lib")
+rm -rf $(find src -name "*.pdb")
+rm -rf $(find src -name "*.ilk")
+find . -name "\.vs" | xargs rm -rf
+
+□ 编译顺序
+在系统环境变量中添加 GAME_LIB_DIR 值为源码工程的根目录
+注意要重启visual studio
+
+①先编译类库的Modules
+src\GameLibs\Modules\Modules.sln
+
+②再编译各个小功能的类库
+比如 src\GameLibs\2DActionGame\GameLib.sln
+
+③最后编译游戏本身
+比如 src\01_FirstGame\FirstGame.sln
+
+为什么要按照这样的顺序呢？请看下面这个例子
+譬如对src\02_2DGraphics1\2DGraphics1.sln 来说，
+首先用vs打开它，右键点击 drawPixels查看属性
+在链接器 的附加库目录一栏可以看到  $(GAME_LIB_DIR)\2DGraphics1\lib;%(AdditionalLibraryDirectories)
+这意味着它需要在2DGraphics1\lib中查找某些类库，
+具体要用什么类库呢？可以点击 链接器 -> 输入 ，看到附加依赖项中有 GameLib_d.lib;%(AdditionalDependencies)
+
+如何才能生成这个 GameLib_d.lib呢?
+打开 src\GameLibs\2DGraphics1\GameLib.sln 编译即可
+但是，通过右键Framework属性， 查看库管理器 的附加依赖项可以看到 Modules_d.lib
+这就要求必须先编译好 Modules工程
+于是打开 src\GameLibs\Modules\Modules.sln 编译即可。
+
+总而言之，这需要理解一些C++的编译知识，当然具体在书中都会有介绍，这里只是赘述一下。
+（完）
